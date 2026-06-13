@@ -1,0 +1,321 @@
+/* Gallery Grid View */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 15px;
+  padding: 10px;
+}
+
+.gallery-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 15px;
+  overflow: hidden;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gallery-item:hover {
+  transform: translateZ(50px) rotateX(5deg);
+  box-shadow: 0 30px 60px rgba(0, 240, 255, 0.3);
+}
+
+.gallery-item.selected {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: all 0.3s;
+}
+
+.item-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 17px;
+  background: linear-gradient(45deg, var(--primary), var(--secondary), var(--accent));
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: -1;
+  filter: blur(10px);
+}
+
+.gallery-item:hover .item-glow {
+  opacity: 0.6;
+}
+
+.item-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.9) 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 15px;
+}
+
+.gallery-item:hover .item-overlay {
+  opacity: 1;
+}
+
+.item-overlay input[type="checkbox"] {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.item-overlay span {
+  font-size: 0.85rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.favorite-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.favorite-btn:hover {
+  transform: scale(1.2);
+}
+
+/* Gallery Empty */
+.gallery-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.gallery-empty p {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+.gallery-empty span {
+  font-size: 0.9rem;
+}
+
+/* Wall View */
+.gallery-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+
+.wall-item {
+  position: relative;
+  border-radius: 15px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.wall-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 50px rgba(0, 240, 255, 0.3);
+}
+
+.wall-item.selected {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.wall-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wall-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.8) 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 15px;
+}
+
+.wall-item:hover .wall-overlay {
+  opacity: 1;
+}
+
+/* Sphere View */
+.gallery-sphere {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1500px;
+}
+
+.sphere-container {
+  position: relative;
+  width: 600px;
+  height: 600px;
+  transform-style: preserve-3d;
+  animation: rotateSphere 30s linear infinite;
+}
+
+@keyframes rotateSphere {
+  from {
+    transform: translate(-50%, -50%) rotateY(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotateY(360deg);
+  }
+}
+
+.sphere-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100px;
+  height: 100px;
+  margin: -50px;
+  transform-style: preserve-3d;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(0, 240, 255, 0.5);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.sphere-item:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.6);
+}
+
+.sphere-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sphere-favorite {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  border: none;
+  border-radius: 50%;
+  font-size: 1rem;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.sphere-item:hover .sphere-favorite {
+  opacity: 1;
+}
+
+/* Carousel View */
+.gallery-carousel {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 30px;
+  padding: 0 50%;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-item {
+  flex-shrink: 0;
+  width: 400px;
+  height: 400px;
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.carousel-item:hover {
+  transform: scale(1.05) translateY(-20px);
+  box-shadow: 0 30px 80px rgba(0, 240, 255, 0.4);
+}
+
+.carousel-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.9));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.carousel-info span {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.carousel-info .favorite-btn {
+  position: static;
+  background: transparent;
+}
