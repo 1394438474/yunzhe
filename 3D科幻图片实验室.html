@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D 科幻图片实验室</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#00f0ff;--secondary:#ff00ff;--accent:#00ff88;--bg-dark:#0a0a1a;--glass:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg-dark);color:#fff}
+canvas#glCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+.ui-layer{position:fixed;top:0;left:0;width:100%;height:100%;z-index:10;pointer-events:none}
+.ui-layer>*{pointer-events:auto}
+.header{position:fixed;top:0;left:0;right:0;height:60px;display:flex;align-items:center;padding:0 20px;background:linear-gradient(180deg,rgba(10,10,26,0.9) 0%,transparent 100%);z-index:100}
+.logo{font-size:1.5rem;font-weight:700;background:linear-gradient(90deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+.nav{position:fixed;left:20px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:100}
+.nav-btn{width:50px;height:50px;border-radius:15px;background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer;transition:all .3s}
+.nav-btn:hover{background:linear-gradient(135deg,var(--primary),var(--secondary));transform:scale(1.1)}
+.nav-btn.active{background:linear-gradient(135deg,var(--primary),var(--secondary));box-shadow:0 0 30px var(--primary)}
+.sidebar{position:fixed;right:0;top:60px;bottom:0;width:300px;background:linear-gradient(270deg,rgba(10,10,26,0.95) 0%,rgba(10,10,26,0.8) 100%);backdrop-filter:blur(20px);border-left:1px solid var(--glass-border);padding:20px;overflow-y:auto;transform:translateX(100%);transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.sidebar.open{transform:translateX(0)}
+.sidebar-title{font-size:1.1rem;color:var(--primary);margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid var(--glass-border)}
+.upload-zone{position:fixed;left:80px;right:320px;bottom:20px;height:120px;background:var(--glass);border:2px dashed var(--glass-border);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;backdrop-filter:blur(20px)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--primary);background:rgba(0,240,255,0.1)}
+.upload-zone.dragover{transform:scale(1.02)}
+.upload-icon{font-size:2rem;margin-bottom:5px}
+.upload-text{font-size:.9rem;color:rgba(255,255,255,.7)}
+.upload-hint{font-size:.75rem;color:rgba(255,255,255,.4);margin-top:5px}
+#fileInput{display:none}
+.gallery{position:fixed;top:80px;left:80px;right:320px;bottom:160px;overflow:auto;perspective:1000px}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:15px;padding:10px}
+.gallery-item{position:relative;border-radius:15px;overflow:hidden;cursor:pointer;transform-style:preserve-3d;transition:all .4s cubic-bezier(.4,0,.2,1);aspect-ratio:1}
+.gallery-item:hover{transform:translateZ(50px) rotateX(5deg);box-shadow:0 30px 60px rgba(0,240,255,.3)}
+.gallery-item img{width:100%;height:100%;object-fit:cover;transition:all .3s}
+.gallery-item .overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,.8) 100%);opacity:0;transition:opacity .3s;display:flex;flex-direction:column;justify-content:flex-end;padding:15px}
+.gallery-item:hover .overlay{opacity:1}
+.gallery-item .overlay span{font-size:.8rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gallery-item .glow{position:absolute;inset:-2px;border-radius:17px;background:linear-gradient(45deg,var(--primary),var(--secondary),var(--accent));opacity:0;transition:opacity .3s;z-index:-1;filter:blur(10px)}
+.gallery-item:hover .glow{opacity:.6}
+.sphere-container{position:fixed;top:50%;left:50%;width:600px;height:600px;transform-style:preserve-3d;animation:rotateSphere 30s linear infinite}
+@keyframes rotateSphere{from{transform:translate(-50%,-50%) rotateY(0deg)}to{transform:translate(-50%,-50%) rotateY(360deg)}}
+.sphere-item{position:absolute;left:50%;top:50%;width:100px;height:100px;margin:-50px;transform-style:preserve-3d;border-radius:10px;overflow:hidden;border:2px solid rgba(0,240,255,.5);box-shadow:0 0 20px rgba(0,240,255,.3)}
+.sphere-item img{width:100%;height:100%;object-fit:cover}
+.controls{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:15px;padding:15px 30px;background:var(--glass);border:1px solid var(--glass-border);border-radius:50px;backdrop-filter:blur(20px);z-index:100}
+.ctrl-btn{padding:10px 20px;border:none;border-radius:25px;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .3s}
+.ctrl-btn:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(0,240,255,.4)}
+.ctrl-btn.active{background:linear-gradient(135deg,var(--accent),var(--primary))}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(10px)}
+.modal.open{display:flex}
+.modal-content{max-width:90%;max-height:90%;position:relative}
+.modal-content img{max-width:100%;max-height:85vh;border-radius:20px;box-shadow:0 0 100px rgba(0,240,255,.5)}
+.modal-close{position:absolute;top:-40px;right:0;font-size:2rem;color:#fff;cursor:pointer;transition:transform .3s}
+.modal-close:hover{transform:rotate(90deg)}
+.modal-nav{position:absolute;top:50%;transform:translateY(-50%);font-size:3rem;color:#fff;cursor:pointer;padding:20px;transition:all .3s}
+.modal-nav:hover{color:var(--primary)}
+.modal-prev{left:-80px}
+.modal-next{right:-80px}
+.loading{position:fixed;inset:0;background:var(--bg-dark);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+.loading.hide{opacity:0;pointer-events:none}
+.loading-ring{width:80px;height:80px;border:3px solid transparent;border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
+.loading-text{margin-top:20px;color:var(--primary);font-size:1.1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.scanline{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,transparent 50%,rgba(0,240,255,.03) 50%);background-size:100%4px;pointer-events:none;z-index:5;opacity:.5}
+.vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 0%,rgba(0,0,0,.4) 100%);pointer-events:none;z-index:4}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(100px);padding:15px 30px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:30px;font-size:.9rem;opacity:0;transition:all .4s;z-index:300}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.search-bar{position:fixed;top:60px;left:50%;transform:translateX(-50%);width:400px;padding:12px 20px;background:var(--glass);border:1px solid var(--glass-border);border-radius:30px;backdrop-filter:blur(20px);outline:none;color:#fff;font-size:.95rem;transition:all .3s}
+.search-bar:focus{border-color:var(--primary);box-shadow:0 0 30px rgba(0,240,255,.3)}
+.stats{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);display:flex;gap:30px;font-size:.85rem;color:rgba(255,255,255,.6)}
+.stats span{display:flex;align-items:center;gap:8px}
+.stats .num{color:var(--primary);font-weight:700;font-size:1rem}
+.view-modes{position:fixed;top:70px;right:320px;display:flex;gap:10px;z-index:100}
+.view-btn{padding:8px 16px;border:1px solid var(--glass-border);background:var(--glass);border-radius:20px;font-size:.8rem;color:rgba(255,255,255,.7);cursor:pointer;transition:all .3s;backdrop-filter:blur(10px)}
+.view-btn:hover,.view-btn.active{background:var(--primary);color:#000;border-color:var(--primary)}
+.progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary),var(--accent));z-index:400;transition:width .3s}
+@media(max-width:1024px){.sidebar{width:250px}.gallery{right:270px}.upload-zone{right:270px}.view-modes{right:270px}}
+@media(max-width:768px){.nav{left:10px}.nav-btn{width:40px;height:40px;font-size:1rem}.sidebar{width:100%;top:auto;bottom:0;height:50vh;transform:translateY(100%)}.sidebar.open{transform:translateY(0)}.gallery{left:60px;right:20px;top:70px;bottom:180px}.upload-zone{left:60px;right:20px;height:100px}.controls{flex-wrap:wrap;justify-content:center;padding:10px 20px}.view-modes{right:20px;top:65px}.search-bar{width:90%;top:65px}}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">
+<div class="loading-ring"></div>
+<div class="loading-text">初始化 WebGL 引擎...</div>
+</div>
+<canvas id="glCanvas"></canvas>
+<canvas id="particleCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none"></canvas>
+<div class="scanline"></div>
+<div class="vignette"></div>
+<div class="progress-bar" id="progressBar"></div>
+<div class="ui-layer">
+<div class="header">
+<div class="logo">◆ NEXUS IMAGE LAB ◆</div>
+</div>
+<input type="text" class="search-bar" id="searchBar" placeholder="🔍 搜索图片...">
+<div class="nav">
+<div class="nav-btn active" data-view="grid" title="网格视图">▦</div>
+<div class="nav-btn" data-view="sphere" title="球体视图">◯</div>
+<div class="nav-btn" data-view="carousel" title="轮播视图">◠</div>
+<div class="nav-btn" data-view="wall" title="瀑布墙">▤</div>
+<div class="nav-btn" onclick="toggleSidebar()" title="管理图片">☰</div>
+</div>
+<div class="view-modes">
+<button class="view-btn active" data-mode="grid">网格</button>
+<button class="view-btn" data-mode="sphere">球体</button>
+<button class="view-btn" data-mode="carousel">轮播</button>
+<button class="view-btn" data-mode="wall">瀑布</button>
+</div>
+<div class="gallery" id="gallery">
+<div class="gallery-grid" id="galleryGrid"></div>
+</div>
+<div class="sphere-container" id="sphereContainer" style="display:none"></div>
+<div class="upload-zone" id="uploadZone">
+<div class="upload-icon">🚀</div>
+<div class="upload-text">拖拽图片或点击上传</div>
+<div class="upload-hint">支持 JPG / PNG / WebP | 多选上传</div>
+</div>
+<input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp">
+<div class="sidebar" id="sidebar">
+<div class="sidebar-title">📊 图片管理</div>
+<div id="imageList"></div>
+</div>
+<div class="controls">
+<button class="ctrl-btn" onclick="slideShow()">▶ 幻灯片</button>
+<button class="ctrl-btn" onclick="toggleSort()">⇄ 排序</button>
+<button class="ctrl-btn" onclick="selectAll()">☐ 全选</button>
+<button class="ctrl-btn" onclick="deleteSelected()" style="background:linear-gradient(135deg,#ff4444,#ff0000)">🗑 删除</button>
+<button class="ctrl-btn" onclick="downloadAll()">⬇ 导出</button>
+</div>
+<div class="stats" id="stats">
+<span>图片 <span class="num" id="imgCount">0</span></span>
+<span>已选 <span class="num" id="selectedCount">0</span></span>
+<span>体积 <span class="num" id="totalSize">0</span> MB</span>
+</div>
+</div>
+<div class="modal" id="modal">
+<div class="modal-content">
+<span class="modal-close" onclick="closeModal()">✕</span>
+<span class="modal-nav modal-prev" onclick="prevImage()">‹</span>
+<img id="modalImg" src="" alt="">
+<span class="modal-nav modal-next" onclick="nextImage()">›</span>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+const canvas=document.getElementById('glCanvas');
+const particleCanvas=document.getElementById('particleCanvas');
+const pCtx=particleCanvas.getContext('2d');
+const gl=canvas.getContext('webgl')||canvas.getContext('experimental-webgl');
+if(!gl){alert('WebGL不可用');return}
+let width,height;
+function resize(){width=canvas.width=particleCanvas.width=window.innerWidth;height=canvas.height=particleCanvas.height=window.innerHeight;gl.viewport(0,0,width,height)}
+window.addEventListener('resize',resize);resize();
+const vsSource=`attribute vec4 aPosition;attribute vec2 aTexCoord;varying vec2 vTexCoord;void main(){gl_Position=aPosition;vTexCoord=aTexCoord;}`;
+const fsSource=`precision mediump float;varying vec2 vTexCoord;uniform sampler2D uTexture;uniform float uTime;uniform vec2 uResolution;void main(){vec2 uv=vTexCoord;vec2 c=uv-.5;float dist=length(c);float pulse=sin(dist*20.-uTime*2.)*.02;uv+=c*dist*pulse;vec4 col=texture2D(uTexture,uv);float glow=exp(-dist*3.)*.5;col.rgb+=vec3(.0,.9,1.)*glow*abs(sin(uTime));col.rgb=mix(col.rgb,vec3(uv.x,uv.y,1.),glow*.3);gl_FragColor=col;}`;
+function createShader(type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)){console.error(gl.getShaderInfoLog(s));gl.deleteShader(s);return null}return s}
+function createProgram(vs,fs){const p=gl.createProgram();gl.attachShader(p,vs);gl.attachShader(p,fs);gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS)){console.error(gl.getProgramInfoLog(p));return null}return p}
+const vs=createShader(gl.VERTEX_SHADER,vsSource);
+const fs=createShader(gl.FRAGMENT_SHADER,fsSource);
+const program=createProgram(vs,fs);
+const positions=new Float32Array([-1,-1,1,-1,-1,1,1,1]);
+const texCoords=new Float32Array([0,1,1,1,0,0,1,0]);
+const posLoc=gl.getAttribLocation(program,'aPosition');
+const texLoc=gl.getAttribLocation(program,'aTexCoord');
+const posBuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);gl.bufferData(gl.ARRAY_BUFFER,positions,gl.STATIC_DRAW);
+const texBuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,texBuf);gl.bufferData(gl.ARRAY_BUFFER,texCoords,gl.STATIC_DRAW);
+const texture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+const particles=[];
+for(let i=0;i<200;i++){particles.push({x:Math.random()*width,y:Math.random()*height,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,size:Math.random()*3+1,alpha:Math.random()})}
+let bgImage=new Image();bgImage.src='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="#0a0a1a" width="100" height="100"/></svg>');bgImage.onload=()=>{gl.bindTexture(gl.TEXTURE_2D,texture);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,bgImage);render()};
+let startTime=Date.now();
+let images=JSON.parse(localStorage.getItem('nexusImages')||'[]');
+let selectedImages=new Set();
+let currentView='grid';
+let currentModalIndex=-1;
+let isPlaying=false;
+let sortAsc=true;
+let slideshowInterval=null;
+function render(){
+const t=(Date.now()-startTime)/1000;
+gl.useProgram(program);
+gl.bindBuffer(gl.ARRAY_BUFFER,posBuf);gl.enableVertexAttribArray(posLoc);gl.vertexAttribPointer(posLoc,2,gl.FLOAT,false,0,0);
+gl.bindBuffer(gl.ARRAY_BUFFER,texBuf);gl.enableVertexAttribArray(texLoc);gl.vertexAttribPointer(texLoc,2,gl.FLOAT,false,0,0);
+gl.uniform1f(gl.getUniformLocation(program,'uTime'),t);
+gl.uniform2f(gl.getUniformLocation(program,'uResolution'),width,height);
+gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+pCtx.fillStyle='rgba(10,10,26,0.15)';pCtx.fillRect(0,0,width,height);
+pCtx.strokeStyle='rgba(0,240,255,0.1)';pCtx.lineWidth=1;
+for(let i=0;i<particles.length;i++){const p=particles[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>width)p.vx*=-1;if(p.y<0||p.y>height)p.vy*=-1;pCtx.beginPath();pCtx.arc(p.x,p.y,p.size,0,Math.PI*2);pCtx.fillStyle=`rgba(0,240,255,${p.alpha})`;pCtx.fill();pCtx.beginPath();pCtx.arc(p.x+p.vx*5,p.y+p.vy*5,p.size*.5,0,Math.PI*2);pCtx.fillStyle=`rgba(255,0,255,${p.alpha*.5})`;pCtx.fill()}
+gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,particleCanvas);
+gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+requestAnimationFrame(render)}
+render();
+const uploadZone=document.getElementById('uploadZone');
+const fileInput=document.getElementById('fileInput');
+const galleryGrid=document.getElementById('galleryGrid');
+const searchBar=document.getElementById('searchBar');
+const sidebar=document.getElementById('sidebar');
+const modal=document.getElementById('modal');
+const modalImg=document.getElementById('modalImg');
+const toast=document.getElementById('toast');
+const progressBar=document.getElementById('progressBar');
+uploadZone.addEventListener('click',()=>fileInput.click());
+uploadZone.addEventListener('dragover',(e)=>{e.preventDefault();uploadZone.classList.add('dragover')});
+uploadZone.addEventListener('dragleave',()=>uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop',(e)=>{e.preventDefault();uploadZone.classList.remove('dragover');handleFiles(e.dataTransfer.files)});
+fileInput.addEventListener('change',(e)=>handleFiles(e.target.files));
+searchBar.addEventListener('input',(e)=>filterImages(e.target.value));
+function handleFiles(files){const arr=Array.from(files);let loaded=0;arr.forEach((f,i)=>{if(!f.type.match(/image\/(jpeg|png|webp|gif)/))return;const reader=new FileReader();reader.onload=(e)=>{const img=new Image();img.onload=()=>{const id='img_'+Date.now()+'_'+i;const item={id,src:e.target.result,name:f.name,size:(f.size/1024/1024).toFixed(2),date:new Date().toISOString(),selected:false};images.push(item);saveImages();renderGallery();updateStats();loaded++;progressBar.style.width=(loaded/arr.length*100)+'%';if(loaded===arr.length)progressBar.style.width='0%';showToast(`已上传 ${loaded} 张图片`)}};img.src=e.target.result};reader.readAsDataURL(f)})}
+function renderGallery(){const filtered=searchBar.value?images.filter(i=>i.name.toLowerCase().includes(searchBar.value.toLowerCase())):images;galleryGrid.innerHTML='';filtered.forEach((img,idx)=>{const item=document.createElement('div');item.className='gallery-item';item.dataset.id=img.id;item.dataset.index=images.indexOf(img);item.style.animationDelay=idx*0.05+'s';item.innerHTML=`<img src="${img.src}" alt="${img.name}"><div class="glow"></div><div class="overlay"><span>${img.name}</span></div>`;item.onclick=(e)=>{if(e.ctrlKey||e.metaKey){toggleSelect(img.id)}else{openModal(images.indexOf(img))}};item.ondblclick=()=>openModal(images.indexOf(img));item.oncontextmenu=(e)=>{e.preventDefault();toggleSelect(img.id)};const chk=document.createElement('input');chk.type='checkbox';chk.checked=selectedImages.has(img.id);chk.style.position='absolute';chk.style.top='10px';chk.style.left='10px';chk.style.zIndex='10';chk.onclick=(e)=>{e.stopPropagation();toggleSelect(img.id)};item.appendChild(chk);galleryGrid.appendChild(item)});renderSphereContainer()}
+function renderSphereContainer(){const container=document.getElementById('sphereContainer');if(currentView!=='sphere'){container.style.display='none';return}container.style.display='block';container.innerHTML='';const r=250;const n=images.length||20;const filtered=searchBar.value?images.filter(i=>i.name.toLowerCase().includes(searchBar.value.toLowerCase())):images;for(let i=0;i<n;i++){const phi=Math.acos(-1+(2*i)/n);const theta=Math.sqrt(n*Math.PI)*phi;const x=r*Math.cos(theta)*Math.sin(phi);const y=r*Math.cos(phi);const z=r*Math.sin(theta)*Math.sin(phi);const item=document.createElement('div');item.className='sphere-item';item.style.transform=`translate3d(${x}px,${y}px,${z}px)`;const imgData=filtered[i]||filtered[0];item.innerHTML=`<img src="${imgData?imgData.src:'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="#111" width="100" height="100"/></svg>')}" alt="">`;item.onclick=()=>{currentModalIndex=images.indexOf(imgData);modalImg.src=imgData.src;modal.classList.add('open')};container.appendChild(item)}}
+function toggleSelect(id){if(selectedImages.has(id)){selectedImages.delete(id)}else{selectedImages.add(id)}document.querySelectorAll('.gallery-item input[type="checkbox"]').forEach(cb=>{cb.checked=selectedImages.has(cb.closest('.gallery-item').dataset.id)});updateStats()}
+function selectAll(){if(selectedImages.size===images.length){selectedImages.clear()}else{images.forEach(i=>selectedImages.add(i.id))}renderGallery();updateStats()}
+function deleteSelected(){if(selectedImages.size===0)return;images=images.filter(i=>!selectedImages.has(i.id));selectedImages.clear();saveImages();renderGallery();updateStats();showToast('已删除选中图片')}
+function downloadAll(){if(images.length===0){showToast('没有可导出的图片');return}images.forEach(img=>{const a=document.createElement('a');a.href=img.src;a.download=img.name;a.click()})}
+function saveImages(){try{localStorage.setItem('nexusImages',JSON.stringify(images.slice(0,50)))}catch(e){console.warn('存储已满')}}
+function updateStats(){document.getElementById('imgCount').textContent=images.length;document.getElementById('selectedCount').textContent=selectedImages.size;const total=images.reduce((s,i)=>s+parseFloat(i.size),0);document.getElementById('totalSize').textContent=total.toFixed(1)}
+function filterImages(q){renderGallery()}
+function openModal(index){currentModalIndex=index;modalImg.src=images[index].src;modal.classList.add('open')}
+function closeModal(){modal.classList.remove('open')}
+function prevImage(){currentModalIndex=(currentModalIndex-1+images.length)%images.length;modalImg.src=images[currentModalIndex].src}
+function nextImage(){currentModalIndex=(currentModalIndex+1)%images.length;modalImg.src=images[currentModalIndex].src}
+function slideShow(){if(isPlaying){clearInterval(slideshowInterval);isPlaying=false;showToast('幻灯片已停止')}else{isPlaying=true;let i=0;slideshowInterval=setInterval(()=>{if(images.length===0){clearInterval(slideshowInterval);isPlaying=false;return}openModal(i);i=(i+1)%images.length},2500);showToast('幻灯片播放中...')}}
+function toggleSort(){sortAsc=!sortAsc;images.sort((a,b)=>sortAsc?a.date.localeCompare(b.date):b.date.localeCompare(a.date));renderGallery()}
+function toggleSidebar(){sidebar.classList.toggle('open')}
+function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2500)}
+document.querySelectorAll('.nav-btn[data-view]').forEach(btn=>{btn.onclick=()=>{document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentView=btn.dataset.view;document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));document.querySelector(`.view-btn[data-mode="${btn.dataset.view}"]`).classList.add('active');if(currentView==='sphere'){galleryGrid.style.display='none';renderSphereContainer()}else{galleryGrid.style.display='grid';renderGallery()}}});
+document.querySelectorAll('.view-btn').forEach(btn=>{btn.onclick=()=>{document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');currentView=btn.dataset.mode;if(currentView==='sphere'){galleryGrid.style.display='none';renderSphereContainer()}else{galleryGrid.style.display='grid';renderGallery()}}});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeModal();if(e.key==='ArrowLeft')prevImage();if(e.key==='ArrowRight')nextImage();if(e.key==='Delete')deleteSelected();if(e.key==='a'&&(e.ctrlKey||e.metaKey)){e.preventDefault();selectAll()}});
+document.querySelectorAll('.gallery-item').forEach(item=>{item.addEventListener('mouseenter',()=>{item.style.zIndex='50'});item.addEventListener('mouseleave',()=>{item.style.zIndex=''}});
+setTimeout(()=>{document.getElementById('loading').classList.add('hide')},1000);
+renderGallery();updateStats();
+const defaultImages=[{id:'demo1',src:'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0ff"/><stop offset="100%" stop-color="#f0f"/></linearGradient></defs><rect fill="#111" width="400" height="400"/><circle cx="200" cy="200" r="150" fill="none" stroke="url(#g)" stroke-width="3"/><polygon points="200,50 350,300 50,300" fill="none" stroke="url(#g)" stroke-width="2"/></svg>'),name:'星际探索.png',size:'0.12',date:new Date().toISOString()},{id:'demo2',src:'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f00"/><stop offset="100%" stop-color="#ff0"/></linearGradient></defs><rect fill="#111" width="400" height="400"/><rect x="50" y="50" width="300" height="300" rx="20" fill="none" stroke="url(#g2)" stroke-width="3" transform="rotate(15 200 200)"/></svg>'),name:'量子漩涡.png',size:'0.10',date:new Date().toISOString()},{id:'demo3',src:'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><defs><radialGradient id="g3"><stop offset="0%" stop-color="#0f0"/><stop offset="100%" stop-color="#000"/></radialGradient></defs><rect fill="#111" width="400" height="400"/><circle cx="200" cy="200" r="150" fill="url(#g3)" opacity="0.8"/><circle cx="200" cy="200" r="80" fill="none" stroke="#0f0" stroke-width="2" stroke-dasharray="10 5"/></svg>'),name:'能量核心.png',size:'0.08',date:new Date().toISOString()}];
+if(images.length===0){images=defaultImages;saveImages();renderGallery()}
+})();
+</script>
+</body>
+</html>
