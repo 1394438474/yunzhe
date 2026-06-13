@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { uploadToCloudinary, isCloudinaryConfigured } from '../lib/cloudinary'
 
 export interface ImageItem {
   id: string
@@ -10,6 +11,18 @@ export interface ImageItem {
   tags: string[]
   favorite: boolean
   folderId: string | null
+}
+
+export interface ProjectCard {
+  id: string
+  name: string
+  description: string
+  tags: string[]
+  githubUrl: string | null
+  demoUrl: string | null
+  screenshotUrl: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Folder {
@@ -30,7 +43,11 @@ interface AppState {
   isPlaying: boolean
   sortOrder: 'asc' | 'desc'
   theme: 'dark' | 'light'
-  
+  // 项目卡片相关
+  projects: ProjectCard[]
+  projectsLoading: boolean
+  projectsError: string | null
+
   addImages: (files: FileList) => void
   removeImages: (ids: string[]) => void
   toggleSelect: (id: string) => void
@@ -46,6 +63,10 @@ interface AppState {
   toggleSort: () => void
   setTheme: (theme: 'dark' | 'light') => void
   updateImageTags: (id: string, tags: string[]) => void
+  // 项目卡片相关方法
+  loadProjects: () => Promise<void>
+  setCurrentProjectView: (view: 'grid' | 'list') => void
+  currentProjectView: 'grid' | 'list'
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15)
@@ -62,17 +83,35 @@ export const useStore = create<AppState>()(
       isPlaying: false,
       sortOrder: 'desc',
       theme: 'dark',
+      // 项目卡片状态
+      projects: [],
+      projectsLoading: false,
+      projectsError: null,
+      currentProjectView: 'grid',
 
       addImages: (files) => {
         const newImages: ImageItem[] = []
         Array.from(files).forEach((file, index) => {
           if (file.type.startsWith('image/')) {
             const reader = new FileReader()
-            reader.onload = (e) => {
-              const src = e.target?.result as string
+            reader.onload = async (e) => {
+              const localSrc = e.target?.result as string
+              
+              let finalSrc = localSrc
+              
+              // 如果配置了 Cloudinary，上传到云端
+              if (isCloudinaryConfigured()) {
+                try {
+                  const result = await uploadToCloudinary(file)
+                  finalSrc = result.secure_url
+                } catch (err) {
+                  console.error('上传失败，使用本地存储:', err)
+                }
+              }
+              
               const newImage: ImageItem = {
                 id: generateId(),
-                src,
+                src: finalSrc,
                 name: file.name,
                 size: file.size / 1024 / 1024,
                 date: new Date().toISOString(),
@@ -181,6 +220,35 @@ export const useStore = create<AppState>()(
             img.id === id ? { ...img, tags } : img
           )
         }))
+      },
+
+      // 加载项目列表
+      loadProjects: async () => {
+        set({ projectsLoading: true, projectsError: null })
+        try {
+          const rawProjects = await fetchProjects()
+          const projects: ProjectCard[] = rawProjects.map((p: Project) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            tags: p.tags || [],
+            githubUrl: p.github_url,
+            demoUrl: p.demo_url,
+            screenshotUrl: p.screenshot_url,
+            createdAt: p.created_at,
+            updatedAt: p.updated_at
+          }))
+          set({ projects, projectsLoading: false })
+        } catch (error) {
+          set({ 
+            projectsError: error instanceof Error ? error.message : '加载项目失败',
+            projectsLoading: false 
+          })
+        }
+      },
+
+      setCurrentProjectView: (view) => {
+        set({ currentProjectView: view })
       }
     }),
     {
